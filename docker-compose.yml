@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+    restart: always
+
+  admin:
+    build:
+      context: ./admin-dashboard
+    ports:
+      - "3001:80"
+    volumes:
+      - ./admin-dashboard:/app
+    restart: always
+
+  client:
+    build:
+      context: ./client-site
+    ports:
+      - "3002:80"
+    volumes:
+      - ./client-site:/app
+    restart: always

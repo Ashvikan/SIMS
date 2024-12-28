@@ -1,0 +1,21 @@
+{
+  "name": "sims_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "joi": "^17.13.3",
+    "mongoose": "^8.7.3",
+    "mqtt": "^5.10.2",
+    "node-cron": "^3.0.3"
+  }
+}
