@@ -8,43 +8,47 @@ const Product = require("./models/Product");
 
 // Utilities
 const logAction = require("./utils/logAction");
+const checkAndReorder = require("./utils/reorder"); // Import automatic reorder logic
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // Middleware to parse JSON
+app.use(express.json());
 
-// Connect to MongoDB
+// Connect to dockerized MongoDB
 mongoose
-    .connect("mongodb://localhost:27017/SIMS", {
+    .connect(process.env.MONGO_URI,  {
         useNewUrlParser: true,
         useUnifiedTopology: true,
+
     })
     .then(() => console.log("Connected to MongoDB"))
     .catch((error) => console.error("Could not connect to MongoDB:", error));
+
 
 // Basic test route
 app.get("/", (req, res) => {
     res.send("Welcome to SIMS Backend");
 });
 
-// Import and use the separate route files
+// Import and use route files
 const productRoutes = require("./routes/products");
 const orderRoutes = require("./routes/orders");
 const notificationRoutes = require("./routes/notifications");
 const auditTrailRoutes = require("./routes/auditTrails");
 
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
 app.use(auditTrailRoutes);
 app.use(notificationRoutes);
-app.use("/api/products", productRoutes); // All product routes will start with /api/products
-app.use("/api/orders", orderRoutes); // All order routes will start with /api/orders
 
 // MQTT Client Setup
-const mqttClient = mqtt.connect("mqtt://localhost:1883");
+const mqttClient = mqtt.connect("mqtt://100.80.105.53:1883"); // Using Tailscale IP of MQTT broker
+
+// const mqttClient = mqtt.connect("mqtt://localhost:1883");
 
 mqttClient.on("connect", () => {
     console.log("Connected to MQTT broker");
 
-    // Subscribe to the "stock/update" topic
     mqttClient.subscribe("stock/update", (err) => {
         if (err) {
             console.error("Failed to subscribe to topic:", err);
@@ -60,7 +64,6 @@ mqttClient.on("message", async (topic, message) => {
             const data = JSON.parse(message.toString());
             console.log("Received stock update:", data);
 
-            // Update product stock level in the database
             const product = await Product.findOne({ productId: data.productId });
             if (product) {
                 const previousStock = product.stockLevel;
@@ -69,37 +72,35 @@ mqttClient.on("message", async (topic, message) => {
 
                 console.log(`Updated stock for product ${data.productId}: ${data.stockLevel}`);
 
-                // Log the stock update
+                // Log stock update
                 await logAction(
                     "Stock Updated",
                     {
                         productId: data.productId,
+                        productName: product.productName,
                         previousStock,
                         newStock: data.stockLevel,
                     },
                     "System"
                 );
 
-                // Reorder logic if stock is below the threshold
+                // Trigger reorder if stock level is below threshold
                 if (product.stockLevel < product.reorderThreshold) {
-                    const reorderQuantity = product.reorderQuantity || 10; // Default to 10 if not specified
-                    const newStockLevel = product.stockLevel + reorderQuantity;
-
-                    // Simulate reorder by updating stock
-                    product.stockLevel = newStockLevel;
+                    console.log(`Stock level for product ${product.productName} is below threshold. Reordering...`);
+                    const reorderQuantity = product.reorderQuantity || 10;
+                    product.stockLevel += reorderQuantity;
                     await product.save();
 
-                    console.log(
-                        `Reordered ${reorderQuantity} units for product ${data.productId}. New stock: ${newStockLevel}`
-                    );
+                    console.log(`Reordered ${reorderQuantity} units for product ${product.productName}`);
 
-                    // Log the reorder action
+                    // Log reorder action
                     await logAction(
                         "Reorder Triggered",
                         {
-                            productId: data.productId,
+                            productId: product.productId,
+                            productName: product.productName,
                             reorderQuantity,
-                            newStockLevel,
+                            newStockLevel: product.stockLevel,
                         },
                         "System"
                     );
@@ -108,10 +109,20 @@ mqttClient.on("message", async (topic, message) => {
                 console.warn(`Product with ID ${data.productId} not found`);
             }
         } catch (error) {
-            console.error("Error processing MQTT message:", error);
+            console.error("Error processing MQTT message:", error.message);
         }
     }
 });
+
+// Automatic reorder setup
+setInterval(async () => {
+    try {
+        console.log("Automatic reorder triggered...");
+        await checkAndReorder(); // Execute reorder logic periodically
+    } catch (error) {
+        console.error("Error in automatic reorder:", error.message);
+    }
+}, 1 * 60 * 1000); // Refresh hvert minut
 
 // Start the server
 const PORT = 3000;

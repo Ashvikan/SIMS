@@ -1,50 +1,51 @@
-const Product = require('./models/Product');
-const logAction = require('./utils/logAction');
-const calculateConsumptionRate = require('./utils/logAnalysis');
+const Product = require('../models/Product');
+const logAction = require('./logAction');
 
+/**
+ * Perform periodic stock checks and reorder if necessary
+ */
 async function checkAndReorder() {
     try {
-        console.log("Running checkAndReorder at:", new Date()); // Log each execution
+        console.log("Automatic reorder triggered at:", new Date());
+
+        // Fetch all products
         const products = await Product.find();
 
         for (const product of products) {
             console.log(`Checking product: ${product.productName} (ID: ${product.productId})`);
-            console.log(`Stock level: ${product.stockLevel}, Reorder Threshold: ${product.reorderThreshold}`);
+            console.log(`Stock Level: ${product.stockLevel}, Reorder Threshold: ${product.reorderThreshold}`);
 
-            // Calculate dynamic threshold
-            const dailyRate = await calculateConsumptionRate(product.productId);
-            const leadTime = 3; // Example lead time in days
-            const safetyStock = 5; // Example safety stock
-            const dynamicThreshold = Math.ceil((dailyRate * leadTime) + safetyStock);
-
-            console.log(`Dynamic Threshold: ${dynamicThreshold}`);
+            // Use reorderThreshold directly
+            const dynamicThreshold = product.reorderThreshold;
 
             if (product.stockLevel < dynamicThreshold) {
                 const reorderQuantity = product.reorderQuantity || 10;
 
                 // Update stock level
                 product.stockLevel += reorderQuantity;
+                product.lastReorder = new Date(); // Optional: Track the last reorder time
                 await product.save();
 
-                // Log the reorder action
-                await logAction('Dynamic Reorder', {
-                    productId: product.productId,
-                    productName: product.productName,
-                    reorderQuantity,
-                    newStockLevel: product.stockLevel,
-                }, 'System');
-
                 console.log(`Reordered ${reorderQuantity} units for ${product.productName}`);
+
+                // Log the reorder action
+                await logAction(
+                    'Dynamic Reorder',
+                    {
+                        productId: product.productId,
+                        productName: product.productName,
+                        reorderQuantity,
+                        newStockLevel: product.stockLevel,
+                    },
+                    'System'
+                );
             } else {
                 console.log(`${product.productName} has sufficient stock. No reorder needed.`);
             }
         }
     } catch (error) {
-        console.error("Error checking stock levels for reorder:", error);
+        console.error("Error in automatic reorder process:", error.message);
     }
 }
-
-// Run the function every 5 seconds (or adjust as needed for testing)
-setInterval(checkAndReorder, 5000); // 5-second interval for testing
 
 module.exports = checkAndReorder;

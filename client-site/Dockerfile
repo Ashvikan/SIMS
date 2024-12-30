@@ -1,5 +1,5 @@
-# Use Node.js as the base image
-FROM node:16
+# Use the Node.js image
+FROM node:16 as build
 
 # Set the working directory
 WORKDIR /app
@@ -10,18 +10,20 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application code
-COPY src .
+# Copy the rest of the application files
+COPY . .
 
-# Build the application
+# Build the React application
 RUN npm run build
 
-# Use a lightweight server to serve the build
+# Use Nginx to serve the static files
 FROM nginx:alpine
-COPY --from=0 /app/build /usr/share/nginx/html
 
-# Expose port 80
+# Copy the built files to the Nginx HTML folder
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Expose the port Nginx will serve on
 EXPOSE 80
 
-# Start NGINX
+# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

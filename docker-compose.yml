@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.9"
 
 services:
   backend:
@@ -8,22 +8,42 @@ services:
       - "3000:3000"
     volumes:
       - ./backend:/app
-    restart: always
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://100.80.105.53:27017/SIMS  # Use Tailscale IP
+    depends_on:
+      - mongo
 
-  admin:
-    build:
-      context: ./admin-dashboard
-    ports:
-      - "3001:80"
-    volumes:
-      - ./admin-dashboard:/app
-    restart: always
+
 
   client:
     build:
       context: ./client-site
     ports:
-      - "3002:80"
+      - "3001:80"
     volumes:
       - ./client-site:/app
-    restart: always
+    environment:
+      - NODE_ENV=production
+
+  admin:
+    build:
+      context: ./admin-dashboard
+    ports:
+      - "3002:80"
+    volumes:
+      - ./admin-dashboard:/app
+    environment:
+      - NODE_ENV=production
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    command: mongod --bind_ip_all
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
