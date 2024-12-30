@@ -18,15 +18,19 @@ async function checkAndReorder() {
             let dynamicThreshold = product.reorderThreshold;
             let reorderQuantity = product.reorderQuantity;
 
-            // Calculate dynamic thresholds if enabled
+            // Determine if dynamic reorder applies
             if (product.dynamicReorderEnabled && product.salesHistory.length >= 3) {
                 const averageSales = product.salesHistory.reduce((sum, sales) => sum + sales, 0) / product.salesHistory.length;
                 dynamicThreshold = Math.ceil(averageSales * 1.5);
                 reorderQuantity = Math.max(Math.ceil(averageSales * 2), product.reorderQuantity);
 
+                console.log(`Dynamic reorder triggered for ${product.productName}.`);
                 console.log(`Dynamic Threshold: ${dynamicThreshold}, Dynamic Reorder Quantity: ${reorderQuantity}`);
+            } else {
+                console.log(`Rule-based reorder used for ${product.productName}.`);
             }
 
+            // Reorder logic
             if (product.stockLevel < dynamicThreshold) {
                 product.stockLevel += reorderQuantity;
                 product.lastReorder = new Date();
@@ -34,6 +38,7 @@ async function checkAndReorder() {
 
                 console.log(`Reordered ${reorderQuantity} units for ${product.productName}`);
 
+                // Log action to the audit trail
                 await logAction(
                     'Dynamic Reorder',
                     {
