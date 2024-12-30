@@ -15,20 +15,25 @@ async function checkAndReorder() {
             console.log(`Checking product: ${product.productName} (ID: ${product.productId})`);
             console.log(`Stock Level: ${product.stockLevel}, Reorder Threshold: ${product.reorderThreshold}`);
 
-            // Use reorderThreshold directly
-            const dynamicThreshold = product.reorderThreshold;
+            let dynamicThreshold = product.reorderThreshold;
+            let reorderQuantity = product.reorderQuantity;
+
+            // Calculate dynamic thresholds if enabled
+            if (product.dynamicReorderEnabled && product.salesHistory.length >= 3) {
+                const averageSales = product.salesHistory.reduce((sum, sales) => sum + sales, 0) / product.salesHistory.length;
+                dynamicThreshold = Math.ceil(averageSales * 1.5);
+                reorderQuantity = Math.max(Math.ceil(averageSales * 2), product.reorderQuantity);
+
+                console.log(`Dynamic Threshold: ${dynamicThreshold}, Dynamic Reorder Quantity: ${reorderQuantity}`);
+            }
 
             if (product.stockLevel < dynamicThreshold) {
-                const reorderQuantity = product.reorderQuantity || 10;
-
-                // Update stock level
                 product.stockLevel += reorderQuantity;
-                product.lastReorder = new Date(); // Optional: Track the last reorder time
+                product.lastReorder = new Date();
                 await product.save();
 
                 console.log(`Reordered ${reorderQuantity} units for ${product.productName}`);
 
-                // Log the reorder action
                 await logAction(
                     'Dynamic Reorder',
                     {
@@ -36,6 +41,7 @@ async function checkAndReorder() {
                         productName: product.productName,
                         reorderQuantity,
                         newStockLevel: product.stockLevel,
+                        dynamicReorder: product.dynamicReorderEnabled,
                     },
                     'System'
                 );
