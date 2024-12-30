@@ -56,32 +56,26 @@ router.get('/:productId', async (req, res) => {
 });
 
 // PUT update product by ID
-router.put('/:productId', async (req, res) => {
+// Enable or disable dynamic reorder for a product
+router.put('/:productId/dynamic-reorder', async (req, res) => {
     try {
-        const { stockLevel } = req.body; // New stock level from the request
+        const { dynamicReorderEnabled } = req.body;
         const product = await Product.findOne({ productId: req.params.productId });
 
         if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
+            return res.status(404).json({ message: 'Product not found.' });
         }
 
-        const oldStockLevel = product.stockLevel; // Save the old stock level for logging
-        product.stockLevel = stockLevel || product.stockLevel; // Update stock level
+        product.dynamicReorderEnabled = dynamicReorderEnabled;
         await product.save();
 
-        // Log the stock update action
-        await logAction('Stock Updated', {
-            productId: product.productId,
-            oldStockLevel,
-            newStockLevel: product.stockLevel,
-        }, 'Admin');
-
-        res.json({ message: 'Product updated successfully', product });
+        res.json({ message: 'Dynamic reorder setting updated.', product });
     } catch (error) {
-        console.error("Error updating product:", error);
-        res.status(500).json({ message: 'Error updating product', error: error.message });
+        console.error("Error updating dynamic reorder setting:", error);
+        res.status(500).json({ message: 'Error updating dynamic reorder setting.', error: error.message });
     }
 });
+
 
 
 // DELETE product by ID

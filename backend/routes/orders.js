@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
             products,
         });
 
-        // Check stock levels for each product
+        // Check stock levels for each product and update sales history
         for (const item of products) {
             const product = await Product.findOne({ productId: item.productId });
             if (!product) {
@@ -31,10 +31,16 @@ router.post('/', async (req, res) => {
 
             // Reduce stock level
             product.stockLevel -= item.quantity;
+
+            // Update sales history (add weekly sales to history)
+            const salesHistory = product.salesHistory || [];
+            salesHistory.push(item.quantity);
+            if (salesHistory.length > 10) salesHistory.shift(); // Keep the last 10 weeks of data
+            product.salesHistory = salesHistory;
+
             await product.save();
         }
 
-        await newOrder.save();
 
         // Determine who performed the action
         const performedBy = customerName ? `Client: ${customerName}` : "Admin";

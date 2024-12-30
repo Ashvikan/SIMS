@@ -6,7 +6,7 @@ async function logAction(action, details, performedBy = 'System') {
             action,
             details,
             performedBy,
-            timestamp: new Date(), // Add a timestamp for the log
+            timestamp: new Date(),
         });
         await log.save();
         console.log(`Audit Trail Logged: ${action} by ${performedBy}`);
